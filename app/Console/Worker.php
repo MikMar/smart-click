@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use DB;
-use App\User;
+use App\Job;
+use App\JobUser;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -40,17 +40,42 @@ class Worker extends Command
      */
     public function handle()
     {
-        $user = User::where('id', 1)->update(['name' => strtotime(date('Y-m-d h:i:s'))]);
-        //$user->password = bcrypt('newpassword');
 
-        /*DB::transaction(function () use ($user) {
+        $jobs = Job::where('status', job::STATUS_PENDING)
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('priority');
 
-            $user->save();
+        if (!count($jobs)) {
+            Log::info('There is no job');
+        }
 
-        });*/
+        $job = null;
 
-        //Log::info($user);
-        //Log::info('worker: users count ' . count($users));
+        if (isset($jobs[Job::PRIORITY_HIGH])) {
+            $job = $jobs[Job::PRIORITY_HIGH]->first();
+        }
+        if (isset($jobs[Job::PRIORITY_NORMAL])) {
+            $job = $jobs[Job::PRIORITY_NORMAL]->first();
+        }
+
+        if (!empty($job)) {
+
+            if (!count($job->jobUser)) {
+                Log::info('There is no user in this job');
+                $job->status = Job::STATUS_FINISHED;
+                $job->save();
+                return;
+            }
+
+            foreach ($job->jobUsers as $jobUser) {
+                Log::info($jobUser->user_id);
+
+                JobUser::where('job_id', $jobUser->job_id)
+                    ->where('user_id', $jobUser->user_id)
+                    ->update(['status' => JobUser::STATUS_SENT]);
+            }
+        }
 
     }
 }

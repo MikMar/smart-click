@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class JobUser extends Model
 {
     protected $table = 'rf_jobs_users';
+    public $timestamps = false;
 
     const STATUS_PENDING = 'pending';
     const STATUS_SENT = 'sent';

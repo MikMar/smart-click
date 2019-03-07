@@ -15,6 +15,11 @@ class Job extends Model
     const PRIORITY_HIGH = 'high';
     const PRIORITY_NORMAL = 'normal';
 
+    protected $hidden = [
+        'created_at',
+        'updated_at',
+    ];
+
     public function jobUsers()
     {
         return $this->hasMany(JobUser::class, 'job_id', 'id')->active();

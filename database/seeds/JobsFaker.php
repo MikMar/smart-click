@@ -22,7 +22,7 @@ class JobsFaker extends Seeder
         for ($i = 1; $i <= 10; $i++) {
             $data[$i]['queue_name'] = 'email';
             $data[$i]['priority'] = $faker->randomElement([Job::PRIORITY_NORMAL, Job::PRIORITY_HIGH]);
-            $data[$i]['status'] = $faker->randomElement([Job::STATUS_PENDING, Job::STATUS_FINISHED, Job::STATUS_FAILED]);
+            $data[$i]['status'] = Job::STATUS_PENDING;
         }
 
         DB::table('jobs')->insert($data);
@@ -34,7 +34,7 @@ class JobsFaker extends Seeder
             $data = [];
             $data[$i]['job_id'] = $faker->numberBetween(1, 10);
             $data[$i]['user_id'] = $faker->numberBetween(1, 32680);
-            $data[$i]['status'] = $faker->randomElement([JobUser::STATUS_PENDING, JobUser::STATUS_SENT, JobUser::STATUS_FAILED]);
+            $data[$i]['status'] = JobUser::STATUS_PENDING;
 
             if (!JobUser::where('job_id', $data[$i]['job_id'])->where('user_id', $data[$i]['job_id'])->exists()) {
 
