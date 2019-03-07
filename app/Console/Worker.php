@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use DB;
 use App\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -39,9 +40,17 @@ class Worker extends Command
      */
     public function handle()
     {
+        $user = User::where('id', 1)->update(['name' => strtotime(date('Y-m-d h:i:s'))]);
+        //$user->password = bcrypt('newpassword');
 
-        $users = User::all();
-        Log::info('worker: users count ' . count($users));
+        /*DB::transaction(function () use ($user) {
+
+            $user->save();
+
+        });*/
+
+        //Log::info($user);
+        //Log::info('worker: users count ' . count($users));
 
     }
 }
