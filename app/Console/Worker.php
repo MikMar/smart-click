@@ -7,6 +7,7 @@ use App\Job;
 use App\JobUser;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\View;
 
 class Worker extends Command
 {
@@ -74,12 +75,51 @@ class Worker extends Command
                 }
 
                 foreach ($job->jobUsers as $jobUser) {
-                    Log::info($jobUser->user_id);
+
+                    $status = JobUser::STATUS_PENDING;
+
+                    try {
+
+                        $transport = new \Swift_SmtpTransport(env('MAIL_HOST', '127.0.0.1'), env('MAIL_PORT', 25));
+                        $transport->setUsername(env('MAIL_USERNAME', ''));
+                        $transport->setPassword(env('MAIL_PASSWORD', ''));
+                        $transport->setEncryption(env('MAIL_ENCRYPTION', ''));
+                        if (php_sapi_name() == 'cli') {
+                            $transport->setLocalDomain(env('MAIL_LOCAL_DOMAIN', '127.0.0.1'));
+                        }
+
+                        $mailer = new \Swift_Mailer($transport);
+
+                        $message = new \Swift_Message();
+                        $message->setSubject('Mail from worker');
+                        $message->setFrom(['sc@test.com' => 'No reply']);
+                        $message->setTo($jobUser->user->email);
+
+                        $bodyView = View::make('emails.test', []);
+                        $message->setBody($bodyView->render(), 'text/html');
+
+                        // adding plain text
+                        $textView = View::make('emails.test' . '_text', []);
+                        $message->addPart($textView->render(), 'text/plain');
+
+                        $result = $mailer->send($message);
+
+                        if ($result) {
+                            $status = JobUser::STATUS_SENT;
+                        }
+
+                    } catch (\Exception $e) {
+
+                        if (!in_array($e->getCode(), [451, 0])) {
+                            $status = JobUser::STATUS_FAILED;
+                        }
+                        Log::info($jobUser->user->email . ' ' . $e->getMessage() . ' ' . $e->getcode());
+                    }
 
                     JobUser::where('job_id', $jobUser->job_id)
                         ->where('user_id', $jobUser->user_id)
                         ->lockForUpdate()  // exclusive lock
-                        ->update(['status' => JobUser::STATUS_SENT]);
+                        ->update(['status' => $status]);
                 }
 
             });
