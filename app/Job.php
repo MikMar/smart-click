@@ -6,6 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Job extends Model
 {
+    public static function boot()
+    {
+        parent::boot();
+
+        static::addGlobalScope(new JobScope);
+    }
+
     protected $table = 'jobs';
 
     const STATUS_PENDING = 'pending';
@@ -23,5 +30,10 @@ class Job extends Model
     public function jobUsers()
     {
         return $this->hasMany(JobUser::class, 'job_id', 'id')->active();
+    }
+
+    public function scopeEmailQueue($query)
+    {
+        return $query->where('queue_name', 'email');
     }
 }
