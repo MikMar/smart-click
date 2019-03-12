@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use DB;
 use App\Job;
 use App\JobUser;
 use Illuminate\Console\Command;
@@ -55,26 +56,33 @@ class Worker extends Command
         if (isset($jobs[Job::PRIORITY_HIGH])) {
             $job = $jobs[Job::PRIORITY_HIGH]->first();
         }
-        if (isset($jobs[Job::PRIORITY_NORMAL])) {
+        if (!empty($job) && isset($jobs[Job::PRIORITY_NORMAL])) {
             $job = $jobs[Job::PRIORITY_NORMAL]->first();
         }
 
         if (!empty($job)) {
 
-            if (!count($job->jobUser)) {
-                Log::info('There is no user in this job');
-                $job->status = Job::STATUS_FINISHED;
-                $job->save();
-                return;
-            }
+            DB::transaction(function () use ($job) {
 
-            foreach ($job->jobUsers as $jobUser) {
-                Log::info($jobUser->user_id);
+                if (!count($job->jobUsers()->sharedLock()->get())) { // to share reading ability btw multiple workers
 
-                JobUser::where('job_id', $jobUser->job_id)
-                    ->where('user_id', $jobUser->user_id)
-                    ->update(['status' => JobUser::STATUS_SENT]);
-            }
+                    Log::info('There is no user in this job');
+                    $job->status = Job::STATUS_FINISHED;
+                    $job->save();
+                    return;
+
+                }
+
+                foreach ($job->jobUsers as $jobUser) {
+                    Log::info($jobUser->user_id);
+
+                    JobUser::where('job_id', $jobUser->job_id)
+                        ->where('user_id', $jobUser->user_id)
+                        ->lockForUpdate()  // exclusive lock
+                        ->update(['status' => JobUser::STATUS_SENT]);
+                }
+
+            });
         }
 
     }

@@ -33,7 +33,7 @@ class JobsFaker extends Seeder
         for ($i = 1; $i <= 10000; $i++) {
             $data = [];
             $data[$i]['job_id'] = $faker->numberBetween(1, 10);
-            $data[$i]['user_id'] = $faker->numberBetween(1, 32680);
+            $data[$i]['user_id'] = $faker->numberBetween(1, 32680); // users count got with seeder
             $data[$i]['status'] = JobUser::STATUS_PENDING;
 
             if (!JobUser::where('job_id', $data[$i]['job_id'])->where('user_id', $data[$i]['job_id'])->exists()) {
