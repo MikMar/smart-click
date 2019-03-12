@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\LockingInfo;
 use DB;
 use App\Job;
 use App\JobUser;
@@ -65,14 +66,26 @@ class Worker extends Command
 
             DB::transaction(function () use ($job) {
 
+                $hash = bcrypt(strtotime(date('Y-m-d h:i:s')));
+                LockingInfo::insert(['job_id' => $job->id, 'hash' => $hash]);
+
+                Log::info(LockingInfo::where('job_id', $job->id)->get());
+
                 $jobUsers = $job->jobUsers()->lockForUpdate()->take(5)->get();
 
                 if (!count($jobUsers)) { // to share reading ability btw multiple workers
 
-                    Log::info('There is no user in this job');
-                    $job->status = Job::STATUS_FINISHED;
-                    $job->save();
-                    return;
+                    if (count(LockingInfo::where('job_id', $job->id)->get()) !== 1) {
+
+                        Log::info('Showing no pending users, but locked rows are in process');
+
+                    } else {
+
+                        Log::info('There is no user in this job. Job gets finished status');
+                        $job->status = Job::STATUS_FINISHED;
+                        $job->save();
+
+                    }
 
                 }
 
@@ -112,9 +125,7 @@ class Worker extends Command
 
                     } catch (\Exception $e) {
 
-                        if (!in_array($e->getCode(), [451, 0])) {
-                            $status = JobUser::STATUS_FAILED;
-                        }
+                        $status = JobUser::STATUS_FAILED;
                         Log::info($jobUser->user->email . ' ' . $e->getMessage() . ' ' . $e->getcode());
                     }
 
@@ -122,6 +133,8 @@ class Worker extends Command
                         ->where('user_id', $jobUser->user_id)
                         ->update(['status' => $status]);
                 }
+
+                LockingInfo::where('job_id', $job->id)->where('hash', $hash)->delete();
 
             });
         }
