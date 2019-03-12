@@ -65,7 +65,9 @@ class Worker extends Command
 
             DB::transaction(function () use ($job) {
 
-                if (!count($job->jobUsers()->sharedLock()->get())) { // to share reading ability btw multiple workers
+                $jobUsers = $job->jobUsers()->lockForUpdate()->take(5)->get();
+
+                if (!count($jobUsers)) { // to share reading ability btw multiple workers
 
                     Log::info('There is no user in this job');
                     $job->status = Job::STATUS_FINISHED;
@@ -74,7 +76,7 @@ class Worker extends Command
 
                 }
 
-                foreach ($job->jobUsers as $jobUser) {
+                foreach ($jobUsers as $jobUser) {
 
                     $status = JobUser::STATUS_PENDING;
 
@@ -118,7 +120,6 @@ class Worker extends Command
 
                     JobUser::where('job_id', $jobUser->job_id)
                         ->where('user_id', $jobUser->user_id)
-                        ->lockForUpdate()  // exclusive lock
                         ->update(['status' => $status]);
                 }
 
